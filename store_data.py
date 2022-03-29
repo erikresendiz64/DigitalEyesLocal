@@ -117,9 +117,6 @@ class Store:
             newFace.ID = idx
             newFace.encodings = encodings
 
-            if idx == 0:
-                newFace.MakeAdmin()
-
         print(f'{img_encoded} images encoded')
         print("\nEncoding images loaded")
 
