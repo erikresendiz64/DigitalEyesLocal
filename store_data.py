@@ -69,7 +69,7 @@ class Store:
                     cv2.imwrite(f"./Data/face{faceNum}/face{faceNum}.{int(imgsInDir/5)}.jpg", frame)
                     cv2.imwrite(f"./Dataset/face{faceNum}.{int(imgsInDir/5)}.jpg", frame)
                 pass
-            cv2.imshow('Running', frame)
+            ('Running', frame)
             
             k = cv2.waitKey(1)
 

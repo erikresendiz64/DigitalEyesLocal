@@ -1,3 +1,4 @@
+from tabnanny import check
 from scipy.misc import face
 from store_data import Store
 from face_rec import SimpleFacerec
@@ -88,33 +89,79 @@ def Recognize(cam, checkAdmin):
         key = cv2.waitKey(1)
         if key == 27:
             break
-    
     return False, name
 
-def AddUser(cam):
+def checkAdmin(cam):
     adminRec, name = Recognize(cam, checkAdmin=True)
 
     return adminRec, name
 
-def AddAdmin(cam):
-    adminRec, name = Recognize(cam, checkAdmin=True)
-    
-    return adminRec, name
+def AddUser(isAdmin, user):
+    if isAdmin:
+        print(f'Admin Request Allowed, user: {user}')
+        print('New User, Get Ready To Be Scanned')
+        time.sleep(10)
+        StoreUser(cam, updatingAdmin=False)
+    else:
+        print(f'Sorry, Admin Access Only')
 
-def Remove(user):
-    userFind = f'face{user}'
-    with open('encodings.pickle') as f:
-        users = pickle.load(f)
-        if userFind in users:
-            del users[userFind]
-            with open('encodings.pickle', 'wb') as f:
-                pickle.dump(users,f)
+def AddAdmin(isAdmin, user):
+    if isAdmin:
+        print(f'Admin Request Allowed, user{user}')
+        print('New Admin, Get Ready To Be Scanned')
+        time.sleep(5)
+        isUser, user = Recognize(cam, checkAdmin=False)
+        if isUser:
+            print('Recognized user')
+            with open('encodings.pickle', 'rb') as f:
+                faceToAdd = f'face{user}'
+                userFaces = pickle.load(f)
+                userFaces[faceToAdd].isAdmin = True #double check it updates inside the pickle file
+            
+            updatedUser = userFaces[faceToAdd]
+            with open('admins.pickle', 'rb') as f:
+                admins = pickle.load(f)
+                admins[faceToAdd] = updatedUser
+                with open('admins.pickle', 'wb') as f:
+                    pickle.dump(admins, f)
+                
         else:
-            print('User does not exist. Make sure user is correct')
-    
+            StoreUser(cam, updatingAdmin=True)
+    else:
+        print(f'Sorry, Admin Access Only')
 
-cmd = input('Enter Command: ')
+def Remove(isAdmin, user):
+    if isAdmin:
+        print(f'Admin Request Allowed, user{user}')
+        print('Get ready to scan face to be removed')
+        time.sleep(5)
+        isUser, user = Recognize(cam, checkAdmin=False)
+        if isUser:
+            userFind = f'face{user}'
+            print('Found User to be removed.')
+            with open('encodings.pickle', 'rb') as f:
+                users = pickle.load(f)
+                print(f'Removing {userFind}')
+                del users[userFind]
+                with open('encodings.pickle', 'wb') as f:
+                    pickle.dump(users,f)
+            with open('faces.pickle', 'rb') as f:
+                faces = pickle.load(f)
+                faces.remove(userFind)
+                with open('faces.pickle', 'wb') as f:
+                    pickle.dump(faces,f)
+            files = glob.glob(f'./Data/face{user}/*.jpg', recursive=True)
+            try:
+                for f in files:
+                    os.remove(f)
+            except OSError as e:
+                print("Error: %s : %s" % (f, e.strerror))    
+            print(f'Sucessfully Removed {userFind}')
+    else:
+        print('User does not exist. Make sure user exists')
+
 cam = cv2.VideoCapture(0)
+cmd = input("Enter command: ")
 while cmd != 'Quit':
     if cmd == 'Setup':
         StoreUser(cam, updatingAdmin=True)
@@ -127,40 +174,15 @@ while cmd != 'Quit':
             print(f'Access Denied')
     
     elif (cmd == 'Add User'):
-        isAdmin, user = AddUser(cam)
-        if isAdmin:
-            print(f'Admin Request Allowed, user: {user}')
-            print('New User, Get Ready To Be Scanned')
-            time.sleep(10)
-            StoreUser(cam, updatingAdmin=False)
-        else:
-            print(f'Sorry, Admin Access Only')
-    
-    elif (cmd == 'Add Admin'):
-        isAdmin, user = AddUser(cam)
-        if isAdmin:
-            print(f'Admin Request Allowed, user{user}')
-            print('New Admin, Get Ready To Be Scanned')
-            time.sleep(10)
-            isUser, user = Recognize(cam, checkAdmin=False)
-            if isUser:
-                print('Recognized user')
-                with open('encodings.pickle', 'rb') as f:
-                    faceToAdd = f'face{user}'
-                    userFaces = pickle.load(f)
-                    userFaces[faceToAdd].isAdmin = True #double check it updates inside the pickle file
-                
-                updatedUser = userFaces[faceToAdd]
-                with open('admins.pickle', 'rb') as f:
-                    admins = pickle.load(f)
-                    admins[faceToAdd] = updatedUser
-                    with open('admins.pickle', 'wb') as f:
-                        pickle.dump(admins, f)
-                    
-            else:
-                StoreUser(cam, updatingAdmin=True)
+        isAdmin, user = checkAdmin(cam)
+        AddUser(isAdmin, user)
         
-        else:
-            print(f'Sorry, Admin Access Only')
-
+    elif (cmd == 'Add Admin'):
+        isAdmin, user = checkAdmin(cam)
+        AddAdmin(isAdmin, user)
+        
+    elif cmd == 'Remove':
+        isAdmin, user = checkAdmin(cam)
+        Remove(isAdmin, user)
+        
     cmd = input('Enter Command: ')
